@@ -6,7 +6,10 @@ from com_trajectory_plotter import COMTrajectoryPlotter
 
 if __name__ == "__main__":
     plot = True
-    # Example usage
+
+    """
+    TEST 1
+    """
     endT = 2.0
 
    # Define Bezier control points
@@ -33,7 +36,9 @@ if __name__ == "__main__":
     print(C_ddot_desired)
 
 
-    # New values
+    """
+    TEST 2 with new values
+    """
     endT = 3.0
 
    # Define Bezier control points
