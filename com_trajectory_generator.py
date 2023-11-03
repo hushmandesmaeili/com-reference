@@ -4,6 +4,15 @@ import matplotlib.pyplot as plt
 
 class COMTrajectoryGenerator:
     def __init__(self, endT, P0, P1, P2, Kp, Kd):
+        """
+        Initialize the COMTrajectoryGenerator with the provided parameters.
+
+        Args:
+            endT: End time for the trajectory.
+            P0, P1, P2: Control points for the trajectory.
+            Kp: Proportional gain for desired acceleration control law.
+            Kd: Derivative gain for desired acceleration control law.
+        """
         # Numerical parameters
         self._endT = endT
         self._P0 = P0
@@ -27,8 +36,9 @@ class COMTrajectoryGenerator:
         self._compute_trajectories()
 
     def _compute_trajectories(self):
-        # Define symbolic expressions for the position, velocity, and acceleration trajectories
-        # Your symbolic expressions for position, velocity, and acceleration here
+        """
+        Compute the symbolic expressions for position, velocity, and acceleration trajectories.
+        """
         
         # Adjusted timing profile with parametrize end_time and ease-in/ease-out
         tau = (self._t_sym / self._endT) ** 2 / ((self._t_sym / self._endT) ** 2 + (1 - self._t_sym / self._endT) ** 2)
@@ -63,20 +73,27 @@ class COMTrajectoryGenerator:
         self._velocity_func = ca.Function('velocity_func', [self._t_sym], [self._velocity_expr])
         self._acceleration_func = ca.Function('acceleration_func', [self._t_sym], [self._acceleration_expr])
 
-    def compute_desired_acceleration(self, currentTime, c_actual, c_dot_actual):
-        if self._position_func is None:
-            self._compute_trajectories()
+    def recompute_trajectories(self, endT, P0, P1, P2, Kp, Kd):
+        """
+        Recompute the trajectories with new parameters.
 
-        # Evaluate the symbolic position and velocity at the current time using instance variables
-        c_ref = self._compute_position_ref(currentTime)
-        c_dot_ref = self._compute_velocity_ref(currentTime)
+        Args:
+            endT: New end time for the trajectory.
+            P0, P1, P2: New control points for the trajectory.
+            Kp: New proportional gain for control.
+            Kd: New derivative gain for control.
+        """
+        # New numerical parameters
+        self._endT = endT
+        self._P0 = P0
+        self._P1 = P1
+        self._P2 = P2
+        self._Kp = Kp
+        self._Kd = Kd
 
-        # Compute the desired acceleration based on the control law
-        c_ddot_ref = self._compute_acceleration_ref(currentTime)
-        C_ddot_desired = self._Kp * (c_ref - c_actual) + self._Kd * (c_dot_ref - c_dot_actual) + c_ddot_ref
+        # Recompute trajectories
+        self._compute_trajectories()
 
-        return C_ddot_desired
-    
     def _compute_position_ref(self, currentTime):
         c_ref = self._position_func(currentTime)
 
@@ -92,101 +109,27 @@ class COMTrajectoryGenerator:
 
         return c_ddot_ref
 
+    def compute_desired_acceleration(self, currentTime, c_actual, c_dot_actual):
+        """
+        Compute the desired acceleration based on PD control law with feedforward term.
 
-if __name__ == "__main__":
-    plot = True
-    # Example usage
-    endT = 2.0
+        Args:
+            currentTime: Current time.
+            c_actual: Current position.
+            c_dot_actual: Current velocity.
 
-   # Define Bezier control points
-    P0 = np.array([0, 0])
-    P1 = np.array([0.02, 0.35])  # Adjust this control point for ease-in/out
-    P2 = np.array([0.5, 0.15])
+        Returns:
+            C_ddot_desired: Desired acceleration based on control law.
+        """
+        if self._position_func is None:
+            self._compute_trajectories()
 
-    Kp = 1.0
-    Kd = 0.1
+        # Evaluate the symbolic position and velocity at the current time using instance variables
+        c_ref = self._compute_position_ref(currentTime)
+        c_dot_ref = self._compute_velocity_ref(currentTime)
 
-    traj = COMTrajectoryGenerator(endT, P0, P1, P2, Kp, Kd)
+        # Compute the desired acceleration based on the control law
+        c_ddot_ref = self._compute_acceleration_ref(currentTime)
+        C_ddot_desired = self._Kp * (c_ref - c_actual) + self._Kd * (c_dot_ref - c_dot_actual) + c_ddot_ref
 
-    if (plot):
-
-        # Define time values for plotting
-        t_values = np.linspace(0, endT, 100)  # Adjust the time range as needed
-
-        # Calculate position, velocity, and acceleration trajectories
-        x_values = []
-        y_values = []
-        vx_values = []
-        vy_values = []
-        ax_values = []
-        ay_values = []
-
-        for tau in t_values:
-            position_at_time = traj._compute_position_ref(tau)
-            velocity_at_time = traj._compute_velocity_ref(tau)  # Pass the control points as a single argument
-            acceleration_at_time = traj._compute_acceleration_ref(tau)  # Pass the control points as a single argument
-
-            x_values.append(position_at_time[0])
-            y_values.append(position_at_time[1])
-            vx_values.append(velocity_at_time[0])
-            vy_values.append(velocity_at_time[1])
-            ax_values.append(acceleration_at_time[0])
-            ay_values.append(acceleration_at_time[1])
-
-        # Plot the results
-        plt.figure(figsize=(9, 9))
-
-        # Plot x and y position trajectories
-        plt.subplot(1, 1, 1)
-        plt.plot(*zip(*[P0, P1, P2]), marker='o', linestyle='-')
-        plt.plot(np.reshape(x_values, (100, 1)), np.reshape(y_values, (100, 1)))
-        plt.xlabel('x')
-        plt.ylabel('y')
-        plt.legend()
-        plt.grid()
-        plt.xlim(0, 0.5)
-        plt.ylim(0, 0.5)
-        plt.gca().set_aspect('auto')
-
-        plt.figure(figsize=(9, 9))
-
-        # Plot x and y position trajectories
-        plt.subplot(3, 1, 1)
-        plt.plot(np.reshape(t_values, (100, 1)), np.reshape(x_values, (100, 1)), label='x-position')
-        plt.plot(np.reshape(t_values, (100, 1)), np.reshape(y_values, (100, 1)), label='y-position')
-        plt.xlabel('Time')
-        plt.ylabel('Position')
-        plt.legend()
-        plt.grid()
-        plt.gca().set_aspect('auto')
-
-        # Plot x and y velocity trajectories
-        plt.subplot(3, 1, 2)
-        plt.plot(np.reshape(t_values, (100, 1)), np.reshape(vx_values, (100, 1)), label='x-velocity')
-        plt.plot(np.reshape(t_values, (100, 1)), np.reshape(vy_values, (100, 1)), label='y-velocity')
-        plt.xlabel('Time')
-        plt.ylabel('Velocity')
-        plt.grid()
-        plt.gca().set_aspect('auto')
-
-        # Plot x and y acceleration trajectories
-        plt.subplot(3, 1, 3)
-        plt.plot(np.reshape(t_values, (100, 1)), np.reshape(ax_values, (100, 1)), label='x-acceleration')
-        plt.plot(np.reshape(t_values, (100, 1)), np.reshape(ay_values, (100, 1)), label='y-acceleration')
-        plt.xlabel('Time')
-        plt.ylabel('Acceleration')
-        plt.legend()
-        plt.grid()
-        plt.gca().set_aspect('auto')
-
-        plt.tight_layout()
-        plt.show()
-
-    # Example usage of the compute_desired_acceleration method
-    currentTime = 1.0
-    c_actual = np.array([0.5, 0.5, 0])
-    c_dot_actual = np.array([0.1, 0.1, 0])
-
-    C_ddot_desired = traj.compute_desired_acceleration(currentTime, c_actual, c_dot_actual)
-
-    print(C_ddot_desired)
+        return C_ddot_desired
