@@ -47,8 +47,7 @@ A_new = ca.vertcat(
 )
 P_curr = ca.MX.sym('P_curr')  # Symbolic total time variable
 V_curr = ca.MX.sym('V_curr')  # Symbolic total time variable
-Kp = np.array([0, 0])
 
 C_ddot_des = kp * (P_new - P_curr) + kd * (V_new - V_curr) + A_new
 
-
+print(C_ddot_des)
